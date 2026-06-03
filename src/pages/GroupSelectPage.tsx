@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase, Group } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Users, Plus, LogIn, ArrowRight, Loader2 } from 'lucide-react';
@@ -16,8 +16,11 @@ export default function GroupSelectPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useState(() => {
-    if (!user) return;
+  useEffect(() => {
+    if (!user) {
+      setLoaded(true);
+      return;
+    }
     (async () => {
       const { data } = await supabase
         .from('group_members')
@@ -28,7 +31,7 @@ export default function GroupSelectPage() {
       }
       setLoaded(true);
     })();
-  });
+  }, [user]);
 
   const createGroup = async (e: React.FormEvent) => {
     e.preventDefault();

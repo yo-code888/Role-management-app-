@@ -34,7 +34,15 @@ export default function MyPage() {
     const [upcomingRes, recentRes] = await Promise.all([
       supabase
         .from('duty_schedules')
-        .select('*, duty_type:duty_types(*), member:group_members!duty_schedules_assigned_user_id_fkey(*)')
+        .select(`
+          *,
+          duty_type:duty_type_id (
+            id, group_id, name, color, icon, created_at
+          ),
+          member:assigned_user_id (
+            id, group_id, user_id, role, display_name, joined_at
+          )
+        `)
         .eq('group_id', currentGroup.id)
         .eq('assigned_user_id', user.id)
         .gte('scheduled_date', today)
@@ -42,7 +50,15 @@ export default function MyPage() {
         .limit(10),
       supabase
         .from('duty_schedules')
-        .select('*, duty_type:duty_types(*), member:group_members!duty_schedules_assigned_user_id_fkey(*)')
+        .select(`
+          *,
+          duty_type:duty_type_id (
+            id, group_id, name, color, icon, created_at
+          ),
+          member:assigned_user_id (
+            id, group_id, user_id, role, display_name, joined_at
+          )
+        `)
         .eq('group_id', currentGroup.id)
         .eq('assigned_user_id', user.id)
         .lt('scheduled_date', today)

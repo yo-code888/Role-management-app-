@@ -46,7 +46,7 @@ export default function MembersPage() {
     setMembers(membersRes.data ?? []);
     setDutyTypes(dutiesRes.data ?? []);
     setLoading(false);
-  }, [currentGroup]);
+  }, [currentGroup, setLoading]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

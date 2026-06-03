@@ -40,15 +40,28 @@ export default function CalendarPage() {
       endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('duty_schedules')
-      .select('*, duty_type:duty_types(*), member:group_members!duty_schedules_assigned_user_id_fkey(*)')
+      .select(`
+        *,
+        duty_type:duty_type_id (
+          id, group_id, name, color, icon, created_at
+        ),
+        member:assigned_user_id (
+          id, group_id, user_id, role, display_name, joined_at
+        )
+      `)
       .eq('group_id', currentGroup.id)
       .gte('scheduled_date', formatDate(startDate))
       .lte('scheduled_date', formatDate(endDate))
       .order('scheduled_date', { ascending: true });
 
-    setSchedules((data as EnrichedSchedule[]) ?? []);
+    if (error) {
+      console.error('Error fetching schedules:', error);
+      setSchedules([]);
+    } else {
+      setSchedules((data as EnrichedSchedule[]) ?? []);
+    }
     setLoading(false);
   }, [currentGroup, currentDate, viewMode]);
 
