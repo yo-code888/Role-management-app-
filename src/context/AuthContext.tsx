@@ -2,9 +2,19 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, Group, GroupMember } from '../lib/supabase';
 
+export interface CustomUser {
+  user_id: string;
+  auth_user_id: string;
+  display_name: string | null;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 type AuthContextType = {
   session: Session | null;
   user: User | null;
+  customUser: CustomUser | null;
   loading: boolean;
   currentGroup: Group | null;
   currentMember: GroupMember | null;
@@ -15,6 +25,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
+  customUser: null,
   loading: true,
   currentGroup: null,
   currentMember: null,
@@ -25,6 +36,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [customUser, setCustomUser] = useState<CustomUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentGroup, setCurrentGroupState] = useState<Group | null>(() => {
     const saved = localStorage.getItem('currentGroup');
@@ -46,12 +58,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!session) {
         setCurrentGroupState(null);
         setCurrentMember(null);
+        setCustomUser(null);
         localStorage.removeItem('currentGroup');
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setCustomUser(null);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+      setCustomUser(data);
+    })();
+  }, [user]);
 
   useEffect(() => {
     if (!user || !currentGroup) {
@@ -83,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, currentGroup, currentMember, setCurrentGroup, signOut }}>
+    <AuthContext.Provider value={{ session, user, customUser, loading, currentGroup, currentMember, setCurrentGroup, signOut }}>
       {children}
     </AuthContext.Provider>
   );
