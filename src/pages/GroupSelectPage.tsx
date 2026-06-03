@@ -1,18 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase, Group } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Users, Plus, LogIn, ArrowRight, Loader2 } from 'lucide-react';
+import { Users, Plus, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function GroupSelectPage() {
   const { user, setCurrentGroup } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [showJoin, setShowJoin] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDesc, setNewGroupDesc] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
-  const [joinDisplayName, setJoinDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -55,36 +52,6 @@ export default function GroupSelectPage() {
       role: 'admin',
       display_name: displayName,
     });
-    setCurrentGroup(group);
-    setLoading(false);
-  };
-
-  const joinGroup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    setLoading(true);
-    setError('');
-    const { data: group, error: groupErr } = await supabase
-      .from('groups')
-      .select('*')
-      .eq('invite_code', inviteCode.toUpperCase().trim())
-      .maybeSingle();
-    if (groupErr || !group) {
-      setError('招待コードが正しくありません');
-      setLoading(false);
-      return;
-    }
-    const { error: joinErr } = await supabase.from('group_members').insert({
-      group_id: group.id,
-      user_id: user.id,
-      role: 'member',
-      display_name: joinDisplayName.trim() || ((user.user_metadata?.display_name as string) || user.email || 'ユーザー'),
-    });
-    if (joinErr) {
-      setError('すでにこのグループに参加しています');
-      setLoading(false);
-      return;
-    }
     setCurrentGroup(group);
     setLoading(false);
   };
@@ -135,20 +102,13 @@ export default function GroupSelectPage() {
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <button
-            onClick={() => { setShowCreate(true); setShowJoin(false); setError(''); }}
+            onClick={() => { setShowCreate(true); setError(''); }}
             className="bg-sky-500 hover:bg-sky-600 text-white rounded-xl p-4 flex flex-col items-center gap-2 transition-colors shadow"
           >
             <Plus className="w-6 h-6" />
             <span className="text-sm font-semibold">グループを作成</span>
-          </button>
-          <button
-            onClick={() => { setShowJoin(true); setShowCreate(false); setError(''); }}
-            className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-xl p-4 flex flex-col items-center gap-2 transition-colors shadow-sm"
-          >
-            <LogIn className="w-6 h-6" />
-            <span className="text-sm font-semibold">招待コードで参加</span>
           </button>
         </div>
 
@@ -177,37 +137,6 @@ export default function GroupSelectPage() {
                 className="w-full py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '作成する'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {showJoin && (
-          <div className="mt-6 bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
-            <h3 className="font-bold text-gray-900 mb-4">招待コードで参加</h3>
-            <form onSubmit={joinGroup} className="space-y-3">
-              <input
-                type="text"
-                value={inviteCode}
-                onChange={e => setInviteCode(e.target.value)}
-                placeholder="招待コード（6文字）"
-                maxLength={6}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm font-mono tracking-widest uppercase"
-                required
-              />
-              <input
-                type="text"
-                value={joinDisplayName}
-                onChange={e => setJoinDisplayName(e.target.value)}
-                placeholder="グループ内の表示名（任意）"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm"
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '参加する'}
               </button>
             </form>
           </div>
