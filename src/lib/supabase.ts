@@ -17,6 +17,8 @@ export type Group = {
   description: string;
   created_by: string | null;
   invite_code: string;
+  access_code?: string;
+  access_password?: string;
   created_at: string;
   updated_at: string;
 };

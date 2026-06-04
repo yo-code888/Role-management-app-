@@ -25,11 +25,11 @@ export default function AuthPage() {
 
     try {
       if (mode === 'team') {
-        // Find group by access_code
+        // Find group by invite_code or access_code
         const { data: groupData, error: groupError } = await supabase
           .from('groups')
           .select('id, access_password')
-          .eq('access_code', teamCode.toUpperCase())
+          .or(`invite_code.eq.${teamCode.toUpperCase()},access_code.eq.${teamCode.toUpperCase()}`)
           .maybeSingle();
 
         if (groupError || !groupData) {
