@@ -145,7 +145,7 @@ export default function AuthPage() {
 
           if (userError) throw userError;
 
-          // Create initial group for owner
+          // Create initial group for owner with short access code
           const groupAccessCode = Math.random().toString(36).substring(2, 8).toUpperCase();
           const { data: newGroup, error: groupError } = await supabase
             .from('groups')

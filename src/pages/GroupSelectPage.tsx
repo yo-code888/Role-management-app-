@@ -44,12 +44,16 @@ export default function GroupSelectPage() {
       return;
     }
 
+    // Generate a short access code
+    const groupAccessCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
     const { data: group, error: groupErr } = await supabase
       .from('groups')
       .insert({
         name: newGroupName.trim(),
         description: newGroupDesc.trim(),
         created_by: user.id,
+        access_code: groupAccessCode,
         access_password: newGroupPassword.trim()
       })
       .select()
