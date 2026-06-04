@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Users, User, LogOut, ChevronDown } from 'lucide-react';
+import { Calendar, Users, User, LogOut, ChevronDown, Settings } from 'lucide-react';
 import { useState } from 'react';
 
 type Page = 'calendar' | 'members' | 'mypage';
@@ -14,6 +14,7 @@ type LayoutProps = {
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { user, currentGroup, setCurrentGroup, signOut } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const navItems: { id: Page; label: string; icon: ReactNode }[] = [
     { id: 'calendar', label: 'カレンダー', icon: <Calendar className="w-5 h-5" /> },
@@ -43,6 +44,15 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
             <span className="text-xs text-gray-500 hidden sm:block">
               {(user?.user_metadata?.display_name as string) || user?.email}
             </span>
+            {user && (
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 text-gray-400 hover:text-sky-500 hover:bg-sky-50 rounded-lg transition-colors"
+                title="設定"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={async () => { await signOut(); }}
               className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -94,6 +104,57 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
           ))}
         </div>
       </nav>
+
+      {/* Settings Modal */}
+      {showSettings && currentGroup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-100 p-6">
+              <h2 className="text-xl font-bold text-gray-900">グループ設定</h2>
+              <p className="text-sm text-gray-500 mt-1">{currentGroup.name}</p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">チームコード</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={currentGroup.access_code}
+                    readOnly
+                    className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono tracking-widest"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(currentGroup.access_code);
+                    }}
+                    className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    title="コピー"
+                  >
+                    📋
+                  </button>
+                </div>
+              </div>
+
+              {user?.id === currentGroup.created_by && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">チームパスワード</label>
+                  <p className="text-sm text-gray-600">{currentGroup.access_password}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-100 p-6">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="w-full py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 font-semibold rounded-lg transition-colors"
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

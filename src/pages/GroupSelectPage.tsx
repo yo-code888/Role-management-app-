@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, Group } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Users, Plus, ArrowRight, Loader2 } from 'lucide-react';
+import { Users, Plus, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export default function GroupSelectPage() {
   const { user, setCurrentGroup } = useAuth();
@@ -10,6 +10,8 @@ export default function GroupSelectPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDesc, setNewGroupDesc] = useState('');
+  const [newGroupPassword, setNewGroupPassword] = useState('password');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,9 +37,21 @@ export default function GroupSelectPage() {
     if (!user) return;
     setLoading(true);
     setError('');
+
+    if (!newGroupPassword.trim()) {
+      setError('パスワードを設定してください');
+      setLoading(false);
+      return;
+    }
+
     const { data: group, error: groupErr } = await supabase
       .from('groups')
-      .insert({ name: newGroupName.trim(), description: newGroupDesc.trim(), created_by: user.id })
+      .insert({
+        name: newGroupName.trim(),
+        description: newGroupDesc.trim(),
+        created_by: user.id,
+        access_password: newGroupPassword.trim()
+      })
       .select()
       .single();
     if (groupErr || !group) {
@@ -131,6 +145,26 @@ export default function GroupSelectPage() {
                 placeholder="説明（任意）"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm"
               />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">チームパスワード</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newGroupPassword}
+                    onChange={e => setNewGroupPassword(e.target.value)}
+                    placeholder="パスワードを設定"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
               <button
                 type="submit"
                 disabled={loading}
