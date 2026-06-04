@@ -25,14 +25,34 @@ export default function AuthPage() {
 
     try {
       if (mode === 'team') {
-        // Find group by invite_code or access_code
-        const { data: groupData, error: groupError } = await supabase
+        const code = teamCode.toUpperCase();
+
+        // Try to find by invite_code first
+        let { data: groupData, error: groupError } = await supabase
           .from('groups')
           .select('id, access_password')
-          .or(`invite_code.eq.${teamCode.toUpperCase()},access_code.eq.${teamCode.toUpperCase()}`)
+          .eq('invite_code', code)
           .maybeSingle();
 
-        if (groupError || !groupData) {
+        // If not found, try access_code
+        if (!groupData && !groupError) {
+          const result = await supabase
+            .from('groups')
+            .select('id, access_password')
+            .eq('access_code', code)
+            .maybeSingle();
+          groupData = result.data;
+          groupError = result.error;
+        }
+
+        if (groupError) {
+          console.error('Query error:', groupError);
+          setError('チームコードが見つかりません');
+          setLoading(false);
+          return;
+        }
+
+        if (!groupData) {
           setError('チームコードが見つかりません');
           setLoading(false);
           return;
