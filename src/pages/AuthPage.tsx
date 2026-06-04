@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { LogIn, UserPlus, Eye, EyeOff, Calendar, Lock } from 'lucide-react';
 
-type Mode = 'login' | 'register';
+type Mode = 'team' | 'owner-login' | 'owner-register';
 
 export default function AuthPage() {
-  const [mode, setMode] = useState<Mode>('login');
+  const [mode, setMode] = useState<Mode>('team');
   const [teamCode, setTeamCode] = useState('');
   const [teamPassword, setTeamPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -24,7 +24,7 @@ export default function AuthPage() {
     setSuccess('');
 
     try {
-      if (mode === 'login') {
+      if (mode === 'team') {
         // Find group by access_code
         const { data: groupData, error: groupError } = await supabase
           .from('groups')
@@ -68,10 +68,39 @@ export default function AuthPage() {
         localStorage.setItem('currentTeamCode', teamCode.toUpperCase());
         localStorage.setItem('currentDisplayName', displayName);
         window.location.href = '/';
+      } else if (mode === 'owner-login') {
+        // Find user by user_id
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (userError || !userData) {
+          setError('ユーザーIDが見つかりません');
+          setLoading(false);
+          return;
+        }
+
+        // Sign in with email and password
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: userData.email,
+          password,
+        });
+
+        if (authError) {
+          setError(
+            authError.message === 'Invalid login credentials'
+              ? 'ユーザーIDまたはパスワードが正しくありません'
+              : authError.message
+          );
+          setLoading(false);
+          return;
+        }
       } else {
-        // Register mode - owner registration with auth
+        // owner-register mode
         if (!userId.trim() || !displayName.trim()) {
-          setError('ユーザーIDと表示名を入力してください');
+          setError('ユーザーID と表示名を入力してください');
           setLoading(false);
           return;
         }
@@ -142,13 +171,11 @@ export default function AuthPage() {
           if (memberError) throw memberError;
 
           setSuccess('アカウントを作成しました。ログインしてください。');
-          setMode('login');
+          setMode('owner-login');
           setUserId('');
           setEmail('');
           setPassword('');
           setDisplayName('');
-          setTeamCode(groupAccessCode);
-          setTeamPassword('password');
         }
       }
     } catch (err) {
@@ -169,17 +196,24 @@ export default function AuthPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-          <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
+          <div className="flex rounded-xl bg-gray-100 p-1 mb-6 gap-1">
             <button
-              onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${mode === 'login' ? 'bg-white text-sky-600 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => { setMode('team'); setError(''); setSuccess(''); }}
+              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${mode === 'team' ? 'bg-white text-sky-600 shadow' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <Lock className="w-4 h-4 inline mr-1" />
               チーム参加
             </button>
             <button
-              onClick={() => { setMode('register'); setError(''); setSuccess(''); }}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${mode === 'register' ? 'bg-white text-sky-600 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => { setMode('owner-login'); setError(''); setSuccess(''); }}
+              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${mode === 'owner-login' ? 'bg-white text-sky-600 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <LogIn className="w-4 h-4 inline mr-1" />
+              オーナーログイン
+            </button>
+            <button
+              onClick={() => { setMode('owner-register'); setError(''); setSuccess(''); }}
+              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${mode === 'owner-register' ? 'bg-white text-sky-600 shadow' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <UserPlus className="w-4 h-4 inline mr-1" />
               オーナー登録
@@ -198,7 +232,7 @@ export default function AuthPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'login' ? (
+            {mode === 'team' && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">チームコード</label>
@@ -243,7 +277,45 @@ export default function AuthPage() {
                   />
                 </div>
               </>
-            ) : (
+            )}
+
+            {mode === 'owner-login' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ユーザーID</label>
+                  <input
+                    type="text"
+                    value={userId}
+                    onChange={e => setUserId(e.target.value.trim())}
+                    placeholder="user123"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent text-sm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="パスワード"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent text-sm pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {mode === 'owner-register' && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ユーザーID</label>
@@ -310,20 +382,16 @@ export default function AuthPage() {
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : mode === 'login' ? (
+              ) : mode === 'team' ? (
                 <><LogIn className="w-4 h-4" />チームに参加</>
+              ) : mode === 'owner-login' ? (
+                <><LogIn className="w-4 h-4" />ログイン</>
               ) : (
-                <><UserPlus className="w-4 h-4" />オーナーとして登録</>
+                <><UserPlus className="w-4 h-4" />登録</>
               )}
             </button>
           </form>
         </div>
-
-        <p className="text-xs text-gray-500 text-center mt-4">
-          {mode === 'login'
-            ? 'オーナーの方は上のタブから登録してください'
-            : 'チームコードをお持ちの方は上のタブから参加できます'}
-        </p>
       </div>
     </div>
   );
