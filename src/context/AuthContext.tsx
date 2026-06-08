@@ -55,7 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      if (!session) {
+      // Don't clear group for guest users (they have teamCode but no session)
+      const isGuest = !!localStorage.getItem('currentTeamCode');
+      if (!session && !isGuest) {
         setCurrentGroupState(null);
         setCurrentMember(null);
         setCustomUser(null);

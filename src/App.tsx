@@ -23,11 +23,20 @@ function AppContent() {
     if (teamCode && displayName && !currentGroup && !session) {
       setCheckingTeamCode(true);
       (async () => {
-        const { data } = await supabase
+        let { data } = await supabase
           .from('groups')
           .select('*')
           .eq('access_code', teamCode)
           .maybeSingle();
+
+        if (!data) {
+          const result = await supabase
+            .from('groups')
+            .select('*')
+            .eq('invite_code', teamCode)
+            .maybeSingle();
+          data = result.data;
+        }
 
         if (data) {
           setCurrentGroup(data);
