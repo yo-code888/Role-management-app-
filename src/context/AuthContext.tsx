@@ -109,6 +109,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    localStorage.removeItem('currentTeamCode');
+    localStorage.removeItem('currentDisplayName');
+    localStorage.removeItem('currentGroup');
+    setCurrentGroupState(null);
+    setCurrentMember(null);
     await supabase.auth.signOut();
   };
 

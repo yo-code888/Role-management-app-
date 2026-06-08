@@ -65,21 +65,30 @@ export default function AuthPage() {
           return;
         }
 
-        // Add as guest member to group
-        const { error: memberError } = await supabase
+        // Check if member with same display_name already exists
+        const { data: existingMember } = await supabase
           .from('group_members')
-          .insert({
-            group_id: groupData.id,
-            user_id: null,
-            display_name: displayName,
-            role: 'member',
-            joined_at: new Date().toISOString(),
-          });
+          .select('id')
+          .eq('group_id', groupData.id)
+          .eq('display_name', displayName)
+          .maybeSingle();
 
-        if (memberError) {
-          setError(memberError.message);
-          setLoading(false);
-          return;
+        if (!existingMember) {
+          const { error: memberError } = await supabase
+            .from('group_members')
+            .insert({
+              group_id: groupData.id,
+              user_id: null,
+              display_name: displayName,
+              role: 'member',
+              joined_at: new Date().toISOString(),
+            });
+
+          if (memberError) {
+            setError(memberError.message);
+            setLoading(false);
+            return;
+          }
         }
 
         // Store team info in localStorage and reload

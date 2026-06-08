@@ -26,10 +26,26 @@ export default function MyPage() {
   const [completedCount, setCompletedCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const myDisplayName = currentMember?.display_name || localStorage.getItem('currentDisplayName') || 'ユーザー';
+
   const fetchMySchedules = useCallback(async () => {
-    if (!currentGroup || !user) return;
+    if (!currentGroup) return;
     setLoading(true);
     const today = new Date().toISOString().split('T')[0];
+
+    // For guest users, find member by display_name; for auth users, by user_id
+    const { data: myMember } = await supabase
+      .from('group_members')
+      .select('id')
+      .eq('group_id', currentGroup.id)
+      .eq('display_name', myDisplayName)
+      .maybeSingle();
+
+    const memberId = myMember?.id;
+    if (!memberId) {
+      setLoading(false);
+      return;
+    }
 
     const [upcomingRes, recentRes] = await Promise.all([
       supabase
@@ -44,7 +60,7 @@ export default function MyPage() {
           )
         `)
         .eq('group_id', currentGroup.id)
-        .eq('assigned_user_id', user.id)
+        .eq('assigned_user_id', memberId)
         .gte('scheduled_date', today)
         .order('scheduled_date', { ascending: true })
         .limit(10),
@@ -60,7 +76,7 @@ export default function MyPage() {
           )
         `)
         .eq('group_id', currentGroup.id)
-        .eq('assigned_user_id', user.id)
+        .eq('assigned_user_id', memberId)
         .lt('scheduled_date', today)
         .order('scheduled_date', { ascending: false })
         .limit(5),
@@ -72,7 +88,7 @@ export default function MyPage() {
     setRecentSchedules(recent);
     setCompletedCount(recent.filter(s => s.is_completed).length);
     setLoading(false);
-  }, [currentGroup, user]);
+  }, [currentGroup, myDisplayName]);
 
   useEffect(() => { fetchMySchedules(); }, [fetchMySchedules]);
 
@@ -87,7 +103,7 @@ export default function MyPage() {
     }
   };
 
-  const displayName = (user?.user_metadata?.display_name as string) || currentMember?.display_name || user?.email || 'ユーザー';
+  const displayName = currentMember?.display_name || myDisplayName;
   const nextDuty = upcomingSchedules[0];
   const nextDiff = nextDuty ? daysDiff(nextDuty.scheduled_date) : null;
 
