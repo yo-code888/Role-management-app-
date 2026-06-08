@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { LogIn, UserPlus, Eye, EyeOff, Calendar, Lock } from 'lucide-react';
 
 type Mode = 'team' | 'owner-login' | 'owner-register';
+type LoginField = 'userId' | 'email';
 
 export default function AuthPage() {
   const [mode, setMode] = useState<Mode>('team');
@@ -14,6 +15,8 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loginField, setLoginField] = useState<LoginField>('userId');
+  const [loginEmail, setLoginEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -96,22 +99,29 @@ export default function AuthPage() {
         localStorage.setItem('currentDisplayName', displayName);
         window.location.href = '/';
       } else if (mode === 'owner-login') {
-        // Find user by user_id
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('email')
-          .eq('user_id', userId)
-          .maybeSingle();
+        let loginEmailAddress: string;
 
-        if (userError || !userData) {
-          setError('ユーザーIDが見つかりません');
-          setLoading(false);
-          return;
+        if (loginField === 'email') {
+          loginEmailAddress = loginEmail;
+        } else {
+          // Find user by user_id
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('email')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (userError || !userData) {
+            setError('ユーザーIDが見つかりません');
+            setLoading(false);
+            return;
+          }
+          loginEmailAddress = userData.email;
         }
 
         // Sign in with email and password
         const { error: authError } = await supabase.auth.signInWithPassword({
-          email: userData.email,
+          email: loginEmailAddress,
           password,
         });
 
@@ -308,17 +318,47 @@ export default function AuthPage() {
 
             {mode === 'owner-login' && (
               <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ユーザーID</label>
-                  <input
-                    type="text"
-                    value={userId}
-                    onChange={e => setUserId(e.target.value.trim())}
-                    placeholder="user123"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent text-sm"
-                    required
-                  />
+                <div className="flex rounded-lg bg-gray-100 p-0.5 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setLoginField('userId')}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${loginField === 'userId' ? 'bg-white text-sky-600 shadow-sm' : 'text-gray-500'}`}
+                  >
+                    ユーザーID
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginField('email')}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${loginField === 'email' ? 'bg-white text-sky-600 shadow-sm' : 'text-gray-500'}`}
+                  >
+                    メールアドレス
+                  </button>
                 </div>
+                {loginField === 'userId' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ユーザーID</label>
+                    <input
+                      type="text"
+                      value={userId}
+                      onChange={e => setUserId(e.target.value.trim())}
+                      placeholder="user123"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent text-sm"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
+                    <input
+                      type="email"
+                      value={loginEmail}
+                      onChange={e => setLoginEmail(e.target.value)}
+                      placeholder="example@email.com"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-transparent text-sm"
+                      required
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
                   <div className="relative">
