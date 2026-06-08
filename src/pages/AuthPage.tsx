@@ -68,14 +68,12 @@ export default function AuthPage() {
         // Add as guest member to group
         const { error: memberError } = await supabase
           .from('group_members')
-          .upsert({
+          .insert({
             group_id: groupData.id,
             user_id: null,
             display_name: displayName,
             role: 'member',
             joined_at: new Date().toISOString(),
-          }, {
-            onConflict: 'group_id,user_id'
           });
 
         if (memberError) {
