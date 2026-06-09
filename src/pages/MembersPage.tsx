@@ -114,14 +114,16 @@ function MembersTab({ members, isAdmin, groupId, onRefresh }: { members: GroupMe
   const [editName, setEditName] = useState('');
 
   const saveName = async (memberId: string) => {
-    await supabase.from('group_members').update({ display_name: editName }).eq('id', memberId);
+    const { error } = await supabase.from('group_members').update({ display_name: editName }).eq('id', memberId);
+    if (error) { alert('名前の変更に失敗しました: ' + error.message); return; }
     setEditingId(null);
     onRefresh();
   };
 
   const removeMember = async (memberId: string) => {
     if (!confirm('このメンバーを削除しますか？')) return;
-    await supabase.from('group_members').delete().eq('id', memberId);
+    const { error } = await supabase.from('group_members').delete().eq('id', memberId);
+    if (error) { alert('メンバーの削除に失敗しました: ' + error.message); return; }
     onRefresh();
   };
 
