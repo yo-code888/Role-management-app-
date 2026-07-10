@@ -18,7 +18,7 @@ function formatDate(d: Date) {
 }
 
 export default function CalendarPage() {
-  const { currentGroup, user } = useAuth();
+  const { currentGroup, currentMember } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [schedules, setSchedules] = useState<EnrichedSchedule[]>([]);
@@ -151,16 +151,16 @@ export default function CalendarPage() {
           <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
         </div>
       ) : viewMode === 'week' ? (
-        <WeekView dates={getWeekDates()} getSchedules={getSchedulesForDate} today={today} onToggle={toggleComplete} userId={user?.id} />
+        <WeekView dates={getWeekDates()} getSchedules={getSchedulesForDate} today={today} onToggle={toggleComplete} memberId={currentMember?.id} />
       ) : (
-        <MonthView dates={getMonthDates()} getSchedules={getSchedulesForDate} today={today} onToggle={toggleComplete} userId={user?.id} />
+        <MonthView dates={getMonthDates()} getSchedules={getSchedulesForDate} today={today} onToggle={toggleComplete} memberId={currentMember?.id} />
       )}
     </div>
   );
 }
 
-function ScheduleCard({ schedule, onToggle, userId }: { schedule: EnrichedSchedule; onToggle: (s: EnrichedSchedule) => void; userId?: string }) {
-  const isMe = schedule.assigned_user_id === userId;
+function ScheduleCard({ schedule, onToggle, memberId }: { schedule: EnrichedSchedule; onToggle: (s: EnrichedSchedule) => void; memberId?: string }) {
+  const isMe = schedule.assigned_user_id === memberId;
   return (
     <div
       className={`rounded-lg p-2 mb-1.5 flex items-start gap-2 transition-opacity ${schedule.is_completed ? 'opacity-60' : ''}`}
@@ -188,12 +188,12 @@ function ScheduleCard({ schedule, onToggle, userId }: { schedule: EnrichedSchedu
   );
 }
 
-function WeekView({ dates, getSchedules, today, onToggle, userId }: {
+function WeekView({ dates, getSchedules, today, onToggle, memberId }: {
   dates: Date[];
   getSchedules: (d: Date) => EnrichedSchedule[];
   today: string;
   onToggle: (s: EnrichedSchedule) => void;
-  userId?: string;
+  memberId?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -221,7 +221,7 @@ function WeekView({ dates, getSchedules, today, onToggle, userId }: {
             {daySchedules.length > 0 && (
               <div className="px-4 py-2">
                 {daySchedules.map(s => (
-                  <ScheduleCard key={s.id} schedule={s} onToggle={onToggle} userId={userId} />
+                  <ScheduleCard key={s.id} schedule={s} onToggle={onToggle} memberId={memberId} />
                 ))}
               </div>
             )}
@@ -232,12 +232,12 @@ function WeekView({ dates, getSchedules, today, onToggle, userId }: {
   );
 }
 
-function MonthView({ dates, getSchedules, today, onToggle, userId }: {
+function MonthView({ dates, getSchedules, today, onToggle, memberId }: {
   dates: (Date | null)[];
   getSchedules: (d: Date) => EnrichedSchedule[];
   today: string;
   onToggle: (s: EnrichedSchedule) => void;
-  userId?: string;
+  memberId?: string;
 }) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
@@ -298,7 +298,7 @@ function MonthView({ dates, getSchedules, today, onToggle, userId }: {
             <p className="text-sm text-gray-400">この日の当番はありません</p>
           ) : (
             getSchedules(selectedDate).map(s => (
-              <ScheduleCard key={s.id} schedule={s} onToggle={onToggle} userId={userId} />
+              <ScheduleCard key={s.id} schedule={s} onToggle={onToggle} memberId={memberId} />
             ))
           )}
         </div>

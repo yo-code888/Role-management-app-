@@ -26,7 +26,7 @@ export type Group = {
 export type GroupMember = {
   id: string;
   group_id: string;
-  user_id: string;
+  user_id: string | null;
   role: 'admin' | 'member';
   display_name: string;
   joined_at: string;

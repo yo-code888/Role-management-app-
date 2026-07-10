@@ -84,18 +84,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    if (!user || !currentGroup) {
+    if (!currentGroup) {
       setCurrentMember(null);
       return;
     }
     (async () => {
-      const { data } = await supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', currentGroup.id)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      setCurrentMember(data);
+      // Authenticated user: find member by user_id
+      if (user) {
+        const { data } = await supabase
+          .from('group_members')
+          .select('*')
+          .eq('group_id', currentGroup.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setCurrentMember(data);
+        return;
+      }
+      // Guest user: find member by display_name from localStorage
+      const displayName = localStorage.getItem('currentDisplayName');
+      if (displayName) {
+        const { data } = await supabase
+          .from('group_members')
+          .select('*')
+          .eq('group_id', currentGroup.id)
+          .eq('display_name', displayName)
+          .maybeSingle();
+        setCurrentMember(data);
+      }
     })();
   }, [user, currentGroup]);
 

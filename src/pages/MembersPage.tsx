@@ -109,7 +109,7 @@ export default function MembersPage() {
 }
 
 function MembersTab({ members, isAdmin, groupId, onRefresh }: { members: GroupMember[]; isAdmin: boolean; groupId: string; onRefresh: () => void }) {
-  const { user } = useAuth();
+  const { currentMember } = useAuth();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
@@ -151,7 +151,7 @@ function MembersTab({ members, isAdmin, groupId, onRefresh }: { members: GroupMe
               <div className="flex items-center gap-2">
                 <span className="font-medium text-gray-900 text-sm">{m.display_name || 'メンバー'}</span>
                 {m.role === 'admin' && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">管理者</span>}
-                {m.user_id === user?.id && <span className="text-xs bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded-full">あなた</span>}
+                {m.id === currentMember?.id && <span className="text-xs bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded-full">あなた</span>}
               </div>
             )}
           </div>
@@ -163,7 +163,7 @@ function MembersTab({ members, isAdmin, groupId, onRefresh }: { members: GroupMe
               >
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
-              {m.user_id !== user?.id && (
+              {m.id !== currentMember?.id && (
                 <button
                   onClick={() => removeMember(m.id)}
                   className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -302,38 +302,84 @@ function AssignTab({ members, dutyTypes, isAdmin, groupId }: { members: GroupMem
   const [selectedMember, setSelectedMember] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'once'>('once');
+  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'weekday' | 'once'>('once');
+  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
+  const WEEKDAYS = [
+    { value: 0, label: '日' },
+    { value: 1, label: '月' },
+    { value: 2, label: '火' },
+    { value: 3, label: '水' },
+    { value: 4, label: '木' },
+    { value: 5, label: '金' },
+    { value: 6, label: '土' },
+  ];
+
+  const toggleWeekday = (day: number) => {
+    setSelectedWeekdays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
+    );
+  };
+
+  const generateDates = (): string[] => {
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    const dates: string[] = [];
+    if (frequency === 'once') {
+      dates.push(startDate);
+      return dates;
+    }
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      if (frequency === 'daily') {
+        dates.push(d.toISOString().split('T')[0]);
+      } else if (frequency === 'weekly') {
+        dates.push(d.toISOString().split('T')[0]);
+        d.setDate(d.getDate() + 6);
+      } else if (frequency === 'weekday') {
+        if (selectedWeekdays.includes(d.getDay())) {
+          dates.push(d.toISOString().split('T')[0]);
+        }
+      }
+    }
+    return dates;
+  };
+
   const autoAssign = async () => {
-    if (!selectedDuty || !startDate || !endDate) {
-      setError('当番種類・開始日・終了日を選択してください');
+    if (!selectedDuty || !startDate) {
+      setError('当番種類・開始日を選択してください');
+      return;
+    }
+    if (frequency !== 'once' && !endDate) {
+      setError('終了日を選択してください');
+      return;
+    }
+    if (frequency === 'weekday' && selectedWeekdays.length === 0) {
+      setError('曜日を少なくとも1つ選択してください');
       return;
     }
     if (members.length === 0) { setError('メンバーがいません'); return; }
     setSaving(true); setError(''); setSuccess('');
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const dates: string[] = [];
-
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + (frequency === 'daily' ? 1 : frequency === 'weekly' ? 7 : 999))) {
-      dates.push(d.toISOString().split('T')[0]);
-      if (frequency === 'once') break;
+    const dates = generateDates();
+    if (dates.length === 0) {
+      setError('対象の日付がありません');
+      setSaving(false);
+      return;
     }
 
     const shuffled = [...members].sort(() => Math.random() - 0.5);
     const inserts = dates.map((date, i) => ({
       group_id: groupId,
       duty_type_id: selectedDuty,
-      assigned_user_id: shuffled[i % shuffled.length].user_id,
+      assigned_user_id: shuffled[i % shuffled.length].id,
       scheduled_date: date,
     }));
 
     const { error: insertErr } = await supabase.from('duty_schedules').insert(inserts);
-    if (insertErr) setError('割り当てに失敗しました');
+    if (insertErr) setError('割り当てに失敗しました: ' + insertErr.message);
     else setSuccess(`${inserts.length}件の当番を自動割り当てしました`);
     setSaving(false);
   };
@@ -350,7 +396,7 @@ function AssignTab({ members, dutyTypes, isAdmin, groupId }: { members: GroupMem
       assigned_user_id: selectedMember,
       scheduled_date: startDate,
     });
-    if (insertErr) setError('割り当てに失敗しました');
+    if (insertErr) setError('割り当てに失敗しました: ' + insertErr.message);
     else setSuccess('当番を割り当てました');
     setSaving(false);
   };
@@ -381,17 +427,35 @@ function AssignTab({ members, dutyTypes, isAdmin, groupId }: { members: GroupMem
         </select>
 
         <h3 className="font-semibold text-gray-900 text-sm pt-1">頻度</h3>
-        <div className="flex gap-2">
-          {[{ v: 'once', l: '一回限り' }, { v: 'daily', l: '毎日' }, { v: 'weekly', l: '毎週' }].map(f => (
+        <div className="grid grid-cols-2 gap-2">
+          {[{ v: 'once', l: '一回限り' }, { v: 'daily', l: '毎日' }, { v: 'weekly', l: '毎週' }, { v: 'weekday', l: '曜日指定' }].map(f => (
             <button
               key={f.v}
               onClick={() => setFrequency(f.v as any)}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-all ${frequency === f.v ? 'bg-sky-500 text-white border-sky-500' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+              className={`py-1.5 text-xs font-medium rounded-lg border transition-all ${frequency === f.v ? 'bg-sky-500 text-white border-sky-500' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
             >
               {f.l}
             </button>
           ))}
         </div>
+
+        {frequency === 'weekday' && (
+          <div>
+            <p className="text-xs text-gray-500 mb-1.5">曜日を選択</p>
+            <div className="flex gap-1.5">
+              {WEEKDAYS.map(w => (
+                <button
+                  key={w.value}
+                  type="button"
+                  onClick={() => toggleWeekday(w.value)}
+                  className={`w-9 h-9 rounded-full text-xs font-bold transition-all ${selectedWeekdays.includes(w.value) ? 'bg-sky-500 text-white shadow' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                >
+                  {w.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -412,7 +476,11 @@ function AssignTab({ members, dutyTypes, isAdmin, groupId }: { members: GroupMem
           <Shuffle className="w-4 h-4 text-sky-600" />
           <h3 className="font-semibold text-gray-900 text-sm">自動割り当て（ランダム）</h3>
         </div>
-        <p className="text-xs text-gray-500">全メンバーにランダムで自動割り当てします</p>
+        <p className="text-xs text-gray-500">
+          {frequency === 'weekday' && selectedWeekdays.length > 0
+            ? `選択した曜日にランダムで割り当てます`
+            : '全メンバーにランダムで自動割り当てします'}
+        </p>
         <button
           onClick={autoAssign}
           disabled={saving}
@@ -433,7 +501,7 @@ function AssignTab({ members, dutyTypes, isAdmin, groupId }: { members: GroupMem
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
         >
           <option value="">メンバーを選択</option>
-          {members.map(m => <option key={m.id} value={m.user_id}>{m.display_name}</option>)}
+          {members.map(m => <option key={m.id} value={m.id}>{m.display_name}</option>)}
         </select>
         <button
           onClick={manualAssign}
